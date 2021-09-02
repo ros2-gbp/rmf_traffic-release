@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5.0)
 
-project(rmf_traffic VERSION 1.0.2)
+project(rmf_traffic VERSION 1.4.0)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 
@@ -22,17 +22,15 @@ include(GNUInstallDirs)
 
 find_package(fcl 0.6 QUIET)
 if(fcl_FOUND)
-  set(FCL_LIBRARIES fcl)
-  set(using_new_fcl true)
-  message(STATUS "Using FCL version: ${FCL_VERSION}")
+  message(STATUS "Using installed FCL version: ${FCL_VERSION}")
 else()
-  include(FindPkgConfig)
-  pkg_check_modules(PC_FCL REQUIRED fcl)
-  pkg_check_modules(PC_CCD REQUIRED ccd)
-  set(FCL_LIBRARIES ${PC_FCL_LIBRARIES} ${PC_CCD_LIBRARIES})
-  set(using_new_fcl)
-  message(STATUS "Using FCL version: ${PC_FCL_VERSION}")
+  message(STATUS "Using in-source FCL")
+  add_subdirectory(thirdparty/fcl)
 endif()
+# TODO(MXG): Remove everything related to maintaining compatibility with 0.5,
+# since we are now requiring FCL-0.6+
+set(using_new_fcl true)
+set(FCL_LIBRARIES fcl)
 
 find_package(rmf_utils REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -67,7 +65,7 @@ if(BUILD_TESTING AND ament_cmake_catch2_FOUND AND rmf_cmake_uncrustify_FOUND)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/>
   )
 
-  find_file(uncrustify_config_file 
+  find_file(uncrustify_config_file
     NAMES "rmf_code_style.cfg"
     PATHS "${rmf_utils_DIR}/../../../share/rmf_utils/")
 
