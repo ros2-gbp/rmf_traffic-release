@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>rmf_traffic</name>
-  <version>1.3.0</version>
+  <version>1.4.0</version>
   <description>Package for managing traffic in the Robotics Middleware Framework</description>
   <maintainer email="grey@openrobotics.org">Grey</maintainer>
   <maintainer email="marco@openrobotics.org">Marco A. Gutiérrez</maintainer>
@@ -12,10 +12,12 @@
   <build_depend>rmf_utils</build_depend>
   <build_export_depend>rmf_utils</build_export_depend>
 
-  <build_depend>libccd-dev</build_depend>
-  <build_depend>libfcl-dev</build_depend>
-  <!-- Uncomment the line below for fcl-0.6 -->
-  <!-- <build_depend>fcl</build_depend> -->
+  <depend>libccd-dev</depend>
+  <!-- Note: We require fcl-0.6 or greater. A copy of fcl-0.6 is provided
+       in-source in case the user is missing it. If you want to build
+       rmf_traffic against a different version of fcl>=0.6 that is in your
+       workspace, then uncomment the line below -->
+  <!--<depend>fcl</depend>-->
 
   <test_depend>ament_cmake_catch2</test_depend>
   <test_depend>rmf_cmake_uncrustify</test_depend>
