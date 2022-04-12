@@ -27,6 +27,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <optional>
 
 namespace rmf_traffic {
 namespace agv {
@@ -96,6 +97,27 @@ public:
     ///
     /// The name of a waypoint can only be set using add_key() or set_key().
     const std::string* name() const;
+
+    /// If this waypoint has a name, the name will be returned. Otherwise it
+    /// will return the waypoint index, formatted into a string based on
+    /// the index_format argument.
+    ///
+    /// \param[in] name_format
+    ///   If this waypoint has an assigned name, the first instance of "%s"
+    ///   within name_format will be replaced with the name of the waypoint. If
+    ///   there is no %s in the name_format string, then this function will
+    ///   simply return the name_format string as-is when the waypoint has a
+    ///   name.
+    ///
+    /// \param[in] index_format
+    ///   If this waypoint does not have an assigned name, the first instance of
+    ///   "%d" within the index_format string will be replaced with the
+    ///   stringified decimal index value of the waypoint. If there is no "%d"
+    ///   in the index_format string, then this function will simply return the
+    ///   index_format string as-is when the waypoint does not have a name.
+    std::string name_or_index(
+      const std::string& name_format = "%s",
+      const std::string& index_format = "#%d") const;
 
     class Implementation;
   private:
@@ -437,6 +459,30 @@ public:
       rmf_utils::impl_ptr<Implementation> _pimpl;
     };
 
+
+    /// The Lane Properties class contains properties that apply across the full
+    /// extent of the lane.
+    class Properties
+    {
+    public:
+
+      /// Construct a default set of properties
+      /// * speed_limit: nullopt
+      Properties();
+
+      /// Get the speed limit along this lane. If a std::nullopt is returned,
+      /// then there is no specified speed limit for the lane.
+      std::optional<double> speed_limit() const;
+
+      /// Set the speed limit along this lane. Providing a std::nullopt
+      /// indicates that there is no speed limit for the lane.
+      Properties& speed_limit(std::optional<double> value);
+
+      class Implementation;
+    private:
+      rmf_utils::impl_ptr<Implementation> _pimpl;
+    };
+
     /// Get the entry node of this Lane. The lane represents an edge in the
     /// graph that goes away from this node.
     Node& entry();
@@ -450,6 +496,12 @@ public:
 
     /// const-qualified exit()
     const Node& exit() const;
+
+    /// Get the properties of this Lane
+    Properties& properties();
+
+    /// const-qualified properties()
+    const Properties& properties() const;
 
     /// Get the index of this Lane within the Graph.
     std::size_t index() const;
@@ -511,7 +563,8 @@ public:
   /// graph to know how the robot is allowed to traverse between waypoints.
   Lane& add_lane(
     const Lane::Node& entry,
-    const Lane::Node& exit);
+    const Lane::Node& exit,
+    Lane::Properties properties = Lane::Properties());
 
   /// Get the lane at the specified index
   Lane& get_lane(std::size_t index);
@@ -524,6 +577,9 @@ public:
 
   /// Get the indices of lanes that come out of the given Waypoint index
   const std::vector<std::size_t>& lanes_from(std::size_t wp_index) const;
+
+  /// Get the indices of lanes that arrive into the given Waypoint index
+  const std::vector<std::size_t>& lanes_into(std::size_t wp_index) const;
 
   /// Get a reference to the lane that goes from from_wp to to_wp if such a lane
   /// exists. If no such lane exists, this will return a nullptr. If multiple
