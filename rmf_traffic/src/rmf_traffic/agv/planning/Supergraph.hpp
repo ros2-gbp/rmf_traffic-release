@@ -36,6 +36,11 @@ namespace agv {
 namespace planning {
 
 //==============================================================================
+double calculate_cost(
+  const rmf_traffic::Trajectory& traj,
+  double traversal_cost_per_meter);
+
+//==============================================================================
 class Supergraph;
 
 //==============================================================================
@@ -62,16 +67,17 @@ struct Traversal
 {
   std::size_t initial_lane_index;
   std::size_t finish_lane_index;
+  std::size_t initial_waypoint_index;
   std::size_t finish_waypoint_index;
   Graph::Lane::EventPtr entry_event;
   Graph::Lane::EventPtr exit_event;
   std::vector<std::string> maps;
   std::vector<std::size_t> traversed_lanes;
-  double best_time;
+  double best_cost;
 
   struct Alternative
   {
-    double time = 0.0;
+    double cost = 0.0;
     std::optional<double> yaw;
 
     using RouteFactoryFactory = DifferentialDriveMapTypes::RouteFactoryFactory;
@@ -84,12 +90,12 @@ using Traversals = std::vector<Traversal>;
 using ConstTraversalsPtr = std::shared_ptr<const Traversals>;
 
 //==============================================================================
-class TraversalGenerator
+class TraversalFromGenerator
   : public Generator<std::unordered_map<std::size_t, ConstTraversalsPtr>>
 {
 public:
 
-  TraversalGenerator(
+  TraversalFromGenerator(
     const std::shared_ptr<const Supergraph>& graph);
 
   ConstTraversalsPtr generate(
@@ -101,11 +107,13 @@ public:
   {
     Kinematics(
       const VehicleTraits& traits,
-      const Interpolate::Options::Implementation& interpolate);
+      const Interpolate::Options::Implementation& interpolate,
+      double traversal_cost_per_meter);
 
     KinematicLimits limits;
     std::optional<DifferentialDriveConstraint> constraint;
     Interpolate::Options::Implementation interpolate;
+    double traversal_cost_per_meter;
   };
 
 private:
@@ -114,7 +122,30 @@ private:
 };
 
 //==============================================================================
-using TraversalCache = Cache<TraversalGenerator>;
+using TraversalFromCache = Cache<TraversalFromGenerator>;
+
+//==============================================================================
+class TraversalIntoGenerator
+  : public Generator<std::unordered_map<std::size_t, ConstTraversalsPtr>>
+{
+public:
+
+  TraversalIntoGenerator(
+    std::shared_ptr<const CacheManager<TraversalFromCache>> traversals_from,
+    const std::shared_ptr<const Supergraph>& graph);
+
+  ConstTraversalsPtr generate(
+    const std::size_t& key,
+    const Storage& old_items,
+    Storage& new_items) const final;
+
+private:
+  std::shared_ptr<const CacheManager<TraversalFromCache>> _traversals_from;
+  std::weak_ptr<const Supergraph> _graph;
+};
+
+//==============================================================================
+using TraversalIntoCache = Cache<TraversalIntoGenerator>;
 
 //==============================================================================
 /// A Supergraph is derived from a regular Graph. It analyzes the vertices and
@@ -132,12 +163,14 @@ public:
     Graph::Implementation original,
     VehicleTraits traits,
     LaneClosure lane_closures,
-    const Interpolate::Options::Implementation& interpolate);
+    const Interpolate::Options::Implementation& interpolate,
+    double traversal_cost_per_meter);
 
   const Graph::Implementation& original() const;
   const VehicleTraits& traits() const;
   const LaneClosure& closures() const;
   const Interpolate::Options::Implementation& options() const;
+  double traversal_cost_per_meter() const;
 
   struct FloorChange
   {
@@ -154,6 +187,10 @@ public:
   /// This means traversals during which the robot does not need to stop or
   /// rotate.
   ConstTraversalsPtr traversals_from(std::size_t waypoint_index) const;
+
+  /// Get the continuous traversals that can be done into the given waypoint.
+  ConstTraversalsPtr traversals_into(
+    std::size_t waypoint_index) const;
 
   using Entry = DifferentialDriveMapTypes::Entry;
   using EntryHash = DifferentialDriveMapTypes::EntryHash;
@@ -199,14 +236,17 @@ private:
     Graph::Implementation original,
     VehicleTraits traits,
     LaneClosure lane_closures,
-    const Interpolate::Options::Implementation& interpolate);
+    const Interpolate::Options::Implementation& interpolate,
+    double traversal_cost_per_meter);
 
   Graph::Implementation _original;
   VehicleTraits _traits;
   LaneClosure _lane_closures;
   Interpolate::Options::Implementation _interpolate;
+  double _traversal_cost_per_meter;
   FloorChangeMap _floor_changes;
-  std::shared_ptr<const CacheManager<TraversalCache>> _traversals;
+  std::shared_ptr<const CacheManager<TraversalFromCache>> _traversals_from;
+  std::shared_ptr<const CacheManager<TraversalIntoCache>> _traversals_into;
   std::optional<DifferentialDriveConstraint> _constraint;
 
   class EntriesGenerator
