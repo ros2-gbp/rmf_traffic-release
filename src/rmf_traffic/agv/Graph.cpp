@@ -156,6 +156,31 @@ const std::string* Graph::Waypoint::name() const
 }
 
 //==============================================================================
+std::string Graph::Waypoint::name_or_index(
+  const std::string& name_format,
+  const std::string& index_format) const
+{
+  if (_pimpl->name)
+  {
+    const auto it = name_format.find_first_of("%s");
+    if (it == std::string::npos)
+      return name_format;
+
+    return name_format.substr(0, it)
+      + _pimpl->name.value()
+      + name_format.substr(it+2);
+  }
+
+  const auto it = index_format.find_first_of("%d");
+  if (it == std::string::npos)
+    return index_format;
+
+  return index_format.substr(0, it)
+    + std::to_string(_pimpl->index)
+    + index_format.substr(it+2);
+}
+
+//==============================================================================
 Graph::Waypoint::Waypoint()
 {
   // Do nothing
@@ -646,6 +671,36 @@ auto Graph::Lane::Node::orientation_constraint() const
 }
 
 //==============================================================================
+class Graph::Lane::Properties::Implementation
+{
+public:
+
+  std::optional<double> speed_limit;
+
+};
+
+//==============================================================================
+Graph::Lane::Properties::Properties()
+: _pimpl(rmf_utils::make_impl<Implementation>())
+{
+  // Do nothing
+}
+
+//==============================================================================
+std::optional<double> Graph::Lane::Properties::speed_limit() const
+{
+  return _pimpl->speed_limit;
+}
+
+//==============================================================================
+auto Graph::Lane::Properties::speed_limit(std::optional<double> value)
+-> Properties&
+{
+  _pimpl->speed_limit = value;
+  return *this;
+}
+
+//==============================================================================
 class Graph::Lane::Implementation
 {
 public:
@@ -656,8 +711,7 @@ public:
 
   Node exit;
 
-  bool has_door;
-  std::size_t door_index;
+  Properties properties;
 
   template<typename... Args>
   static Lane make(Args&& ... args)
@@ -692,6 +746,18 @@ auto Graph::Lane::exit() -> Node&
 auto Graph::Lane::exit() const -> const Node&
 {
   return _pimpl->exit;
+}
+
+//==============================================================================
+auto Graph::Lane::properties() -> Properties&
+{
+  return _pimpl->properties;
+}
+
+//==============================================================================
+auto Graph::Lane::properties() const -> const Properties&
+{
+  return _pimpl->properties;
 }
 
 //==============================================================================
@@ -820,7 +886,8 @@ std::size_t Graph::num_waypoints() const
 //==============================================================================
 auto Graph::add_lane(
   const Lane::Node& entry,
-  const Lane::Node& exit) -> Lane&
+  const Lane::Node& exit,
+  Lane::Properties properties) -> Lane&
 {
   assert(entry.waypoint_index() < _pimpl->waypoints.size());
   assert(exit.waypoint_index() < _pimpl->waypoints.size());
@@ -836,7 +903,7 @@ auto Graph::add_lane(
       _pimpl->lanes.size(),
       std::move(entry),
       std::move(exit),
-      false, std::size_t()));
+      std::move(properties)));
 
   return _pimpl->lanes.back();
 }
@@ -863,6 +930,12 @@ std::size_t Graph::num_lanes() const
 const std::vector<std::size_t>& Graph::lanes_from(std::size_t wp_index) const
 {
   return _pimpl->lanes_from.at(wp_index);
+}
+
+//==============================================================================
+const std::vector<std::size_t>& Graph::lanes_into(std::size_t wp_index) const
+{
+  return _pimpl->lanes_into.at(wp_index);
 }
 
 //==============================================================================

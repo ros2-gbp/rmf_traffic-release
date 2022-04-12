@@ -63,14 +63,27 @@ public:
   /// \param[in] ranges
   ///   The ranges of missing Itinerary IDs
   ///
-  /// \param[in] last_known_version
+  /// \param[in] last_known_itinerary
   ///   The last ItineraryVersion known upstream.
+  ///
+  /// \param[in] last_known_progress
+  ///   The last ProgressVersion known upstream.
   void retransmit(
     const std::vector<Range>& ranges,
-    ItineraryVersion last_known_version);
+    ItineraryVersion last_known_itinerary,
+    ProgressVersion last_known_progress);
+
+  /// Correct the ID of the participant
+  void correct_id(ParticipantId new_id);
 
   /// Get the current ItineraryVersion of the Participant.
-  ItineraryVersion current_version() const;
+  std::optional<ItineraryVersion> current_version() const;
+
+  /// Get the ID of the Participant
+  std::optional<ParticipantId> get_id() const;
+
+  /// Get the description of the Participant
+  std::optional<ParticipantDescription> get_description() const;
 
   class Implementation;
 private:

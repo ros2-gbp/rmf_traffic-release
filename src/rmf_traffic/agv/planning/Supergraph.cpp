@@ -25,6 +25,9 @@
 #include <iostream>
 #endif // RMF_TRAFFIC__AGV__PLANNING__DEBUG__SUPERGRAPH
 
+
+#include <iostream>
+
 namespace rmf_traffic {
 namespace agv {
 namespace planning {
@@ -36,6 +39,8 @@ Supergraph::FloorChangeMap find_floor_changes(
 {
   Supergraph::FloorChangeMap all_floor_changes;
 
+  // TODO(MXG): Calculate this in the regular Graph structure while lanes get
+  // added to it.
   for (std::size_t i = 0; i < original.waypoints.size(); ++i)
   {
     const auto& initial_map_name = original.waypoints[i].get_map_name();
@@ -66,6 +71,7 @@ struct TraversalNode
 {
   std::size_t initial_lane_index;
   std::size_t finish_lane_index;
+  std::size_t initial_waypoint_index;
   std::size_t finish_waypoint_index;
 
   Eigen::Vector2d initial_p;
@@ -73,6 +79,10 @@ struct TraversalNode
 
   Graph::Lane::EventPtr entry_event;
   Graph::Lane::EventPtr exit_event;
+
+  // TODO(MXG): Replace this with a more intelligent way of handling speed limit
+  // changes that may occur when traversing multiple consecutive lanes
+  std::optional<double> lowest_speed_limit;
 
   // TODO(MXG): Can std::string_view be used to make this more memory efficient?
   std::vector<std::string> map_names;
@@ -100,7 +110,7 @@ bool valid_traversal(const TraversalNode& node)
 //==============================================================================
 void node_to_traversals(
   const TraversalNode& node,
-  const TraversalGenerator::Kinematics& kin,
+  const TraversalFromGenerator::Kinematics& kin,
   std::vector<Traversal>& output)
 {
 
@@ -108,8 +118,9 @@ void node_to_traversals(
   Traversal traversal;
   traversal.initial_lane_index = node.initial_lane_index;
   traversal.finish_lane_index = node.finish_lane_index;
+  traversal.initial_waypoint_index = node.initial_waypoint_index;
   traversal.finish_waypoint_index = node.finish_waypoint_index;
-  traversal.best_time = 0.0;
+  traversal.best_cost = 0.0;
   traversal.maps = std::vector<std::string>(
     node.map_names.begin(), node.map_names.end());
   traversal.traversed_lanes = node.traversed_lanes;
@@ -120,14 +131,14 @@ void node_to_traversals(
   if (node.entry_event)
   {
     traversal.entry_event = node.entry_event->clone();
-    traversal.best_time += rmf_traffic::time::to_seconds(
+    traversal.best_cost += rmf_traffic::time::to_seconds(
       traversal.entry_event->duration());
   }
 
   if (node.exit_event)
   {
     traversal.exit_event = node.exit_event->clone();
-    traversal.best_time += rmf_traffic::time::to_seconds(
+    traversal.best_cost += rmf_traffic::time::to_seconds(
       traversal.exit_event->duration());
   }
 
@@ -153,6 +164,7 @@ void node_to_traversals(
   }
 
   std::optional<double> best_trajectory_time;
+  std::optional<double> traversal_distance;
   for (std::size_t i = 0; i < 2; ++i)
   {
     const auto yaw = node.orientations[i];
@@ -172,16 +184,30 @@ void node_to_traversals(
       * yaw
     };
 
+    if (!traversal_distance.has_value())
+    {
+      traversal_distance =
+        (finish.block<2, 1>(0, 0) - start.block<2, 1>(0, 0)).norm();
+    }
+
+    auto kin_limits = kin.limits;
+    if (node.lowest_speed_limit.has_value())
+    {
+      kin_limits.linear.velocity =
+        std::min(kin_limits.linear.velocity, *node.lowest_speed_limit);
+    }
+
     Traversal::Alternative alternative;
     alternative.yaw = *yaw;
     auto factory_info = make_differential_drive_translate_factory(
-      start, finish, kin.limits,
+      start, finish, kin_limits,
       kin.interpolate.translation_thresh,
       kin.interpolate.rotation_thresh,
+      kin.traversal_cost_per_meter,
       traversal.maps);
 
     const auto time = factory_info.minimum_cost;
-    alternative.time = time;
+    alternative.cost = time;
     alternative.routes = std::move(factory_info.factory);
 
 #ifdef RMF_TRAFFIC__AGV__PLANNING__DEBUG__SUPERGRAPH
@@ -196,8 +222,12 @@ void node_to_traversals(
     traversal.alternatives[i] = std::move(alternative);
   }
 
-  if (best_trajectory_time.has_value())
-    traversal.best_time += *best_trajectory_time;
+  if (best_trajectory_time.has_value() && traversal_distance.has_value())
+  {
+    traversal.best_cost +=
+      *best_trajectory_time
+      + kin.traversal_cost_per_meter * (*traversal_distance);
+  }
 
   output.emplace_back(std::move(traversal));
 }
@@ -217,7 +247,7 @@ void perform_traversal(
   const std::size_t lane_index,
   const Graph::Implementation& graph,
   const LaneClosure& closures,
-  const TraversalGenerator::Kinematics& kin,
+  const TraversalFromGenerator::Kinematics& kin,
   std::vector<TraversalNode>& queue,
   std::vector<Traversal>& output,
   std::unordered_set<std::size_t>& visited)
@@ -248,7 +278,9 @@ void perform_traversal(
 
   TraversalNode node;
   node.finish_lane_index = lane_index;
+  node.initial_waypoint_index = wp_index_0;
   node.finish_waypoint_index = wp_index_1;
+  node.lowest_speed_limit = lane.properties().speed_limit();
 
   if (parent)
   {
@@ -260,9 +292,23 @@ void perform_traversal(
     }
 
     node.initial_lane_index = parent->initial_lane_index;
+    node.initial_waypoint_index = parent->initial_waypoint_index;
     node.initial_p = parent->initial_p;
     node.map_names = parent->map_names;
     node.traversed_lanes = parent->traversed_lanes;
+
+    if (parent->lowest_speed_limit.has_value())
+    {
+      if (node.lowest_speed_limit.has_value())
+      {
+        node.lowest_speed_limit =
+          std::min(*node.lowest_speed_limit, *parent->lowest_speed_limit);
+      }
+      else
+      {
+        node.lowest_speed_limit = parent->lowest_speed_limit;
+      }
+    }
 
     if (parent->entry_event)
       node.entry_event = parent->entry_event->clone();
@@ -371,7 +417,7 @@ void expand_traversal(
   const std::size_t lane_index,
   const Graph::Implementation& graph,
   const LaneClosure& closures,
-  const TraversalGenerator::Kinematics& kin,
+  const TraversalFromGenerator::Kinematics& kin,
   std::vector<TraversalNode>& queue,
   std::vector<Traversal>& output,
   std::unordered_set<std::size_t>& visited)
@@ -385,7 +431,7 @@ void initiate_traversal(
   const std::size_t lane_index,
   const Graph::Implementation& graph,
   const LaneClosure& closures,
-  const TraversalGenerator::Kinematics& kin,
+  const TraversalFromGenerator::Kinematics& kin,
   std::vector<TraversalNode>& queue,
   std::vector<Traversal>& output,
   std::unordered_set<std::size_t>& visited)
@@ -395,6 +441,24 @@ void initiate_traversal(
 }
 
 } // anonymous namespace
+
+double calculate_cost(
+  const rmf_traffic::Trajectory& traj,
+  const double traversal_cost_per_meter)
+{
+  if (traj.empty())
+    return 0.0;
+
+  double distance_cost = 0.0;
+  for (std::size_t i=1; i < traj.size(); ++i)
+  {
+    distance_cost +=
+      traversal_cost_per_meter *
+      (traj[i].position() - traj[i-1].position()).block<2, 1>(0, 0).norm();
+  }
+
+  return time::to_seconds(traj.duration());
+}
 
 //==============================================================================
 bool orientation_constraint_satisfied(
@@ -454,11 +518,13 @@ DifferentialDriveConstraint::get_orientations(
 }
 
 //==============================================================================
-TraversalGenerator::Kinematics::Kinematics(
+TraversalFromGenerator::Kinematics::Kinematics(
   const VehicleTraits& traits,
-  const Interpolate::Options::Implementation& interpolate_)
+  const Interpolate::Options::Implementation& interpolate_,
+  double traversal_cost_per_meter_)
 : limits(VehicleTraits::Implementation::get_limits(traits)),
-  interpolate(interpolate_)
+  interpolate(interpolate_),
+  traversal_cost_per_meter(traversal_cost_per_meter_)
 {
   if (const auto* diff_drive = traits.get_differential())
   {
@@ -468,16 +534,17 @@ TraversalGenerator::Kinematics::Kinematics(
 }
 
 //==============================================================================
-TraversalGenerator::TraversalGenerator(
+TraversalFromGenerator::TraversalFromGenerator(
   const std::shared_ptr<const Supergraph>& graph)
 : _graph(graph),
-  _kinematics(graph->traits(), graph->options())
+  _kinematics(
+    graph->traits(), graph->options(), graph->traversal_cost_per_meter())
 {
   // Do nothing
 }
 
 //==============================================================================
-ConstTraversalsPtr TraversalGenerator::generate(
+ConstTraversalsPtr TraversalFromGenerator::generate(
   const std::size_t& key,
   const Storage&, // old items are irrelevant
   Storage& new_items) const
@@ -532,20 +599,84 @@ ConstTraversalsPtr TraversalGenerator::generate(
 }
 
 //==============================================================================
+TraversalIntoGenerator::TraversalIntoGenerator(
+  std::shared_ptr<const CacheManager<TraversalFromCache>> traversals_from,
+  const std::shared_ptr<const Supergraph>& graph)
+: _traversals_from(std::move(traversals_from)),
+  _graph(graph)
+{
+  // Do nothing
+}
+
+//==============================================================================
+ConstTraversalsPtr TraversalIntoGenerator::generate(
+  const std::size_t& key,
+  const Storage&, // old items are irrelevant
+  Storage& new_items) const
+{
+  const auto supergraph = _graph.lock();
+  if (!supergraph)
+    return nullptr;
+
+  const auto& graph = supergraph->original();
+  const auto traversals_into = std::make_shared<Traversals>();
+  std::unordered_set<std::size_t> visited;
+  std::vector<std::size_t> frontier;
+  frontier.push_back(key);
+  while (!frontier.empty())
+  {
+    const auto next = frontier.back();
+    frontier.pop_back();
+    if (!visited.insert(next).second)
+      continue;
+
+    const auto& lanes_into = graph.lanes_into[next];
+    for (const auto& lane_index : lanes_into)
+    {
+      const auto& waypoint_from =
+        graph.lanes[lane_index].entry().waypoint_index();
+
+      const auto& traversals_from = _traversals_from->get().get(waypoint_from);
+      bool keep_exploring = false;
+      for (const auto& traversal : *traversals_from)
+      {
+        if (traversal.finish_waypoint_index == key)
+        {
+          keep_exploring = true;
+          traversals_into->push_back(traversal);
+        }
+      }
+
+      if (keep_exploring)
+        frontier.push_back(waypoint_from);
+    }
+  }
+
+  new_items.insert({key, traversals_into});
+  return traversals_into;
+}
+
+//==============================================================================
 std::shared_ptr<const Supergraph> Supergraph::make(
   Graph::Implementation original,
   VehicleTraits traits,
   LaneClosure lane_closures,
-  const Interpolate::Options::Implementation& interpolate)
+  const Interpolate::Options::Implementation& interpolate,
+  double traversal_cost_per_meter)
 {
   auto supergraph = std::shared_ptr<Supergraph>(
     new Supergraph(
       std::move(original), std::move(traits),
-      std::move(lane_closures), interpolate));
+      std::move(lane_closures), interpolate, traversal_cost_per_meter));
 
-  supergraph->_traversals =
-    CacheManager<TraversalCache>::make(
-    std::make_shared<TraversalGenerator>(supergraph));
+  supergraph->_traversals_from =
+    CacheManager<TraversalFromCache>::make(
+    std::make_shared<TraversalFromGenerator>(supergraph));
+
+  supergraph->_traversals_into =
+    CacheManager<TraversalIntoCache>::make(
+    std::make_shared<TraversalIntoGenerator>(
+      supergraph->_traversals_from, supergraph));
 
   supergraph->_entries_into_waypoint_cache =
     CacheManager<EntriesCache>::make(
@@ -585,6 +716,12 @@ const Interpolate::Options::Implementation& Supergraph::options() const
 }
 
 //==============================================================================
+double Supergraph::traversal_cost_per_meter() const
+{
+  return _traversal_cost_per_meter;
+}
+
+//==============================================================================
 auto Supergraph::floor_change() const -> const FloorChangeMap&
 {
   return _floor_changes;
@@ -594,7 +731,14 @@ auto Supergraph::floor_change() const -> const FloorChangeMap&
 ConstTraversalsPtr Supergraph::traversals_from(
   const std::size_t waypoint_index) const
 {
-  return _traversals->get().get(waypoint_index);
+  return _traversals_from->get().get(waypoint_index);
+}
+
+//==============================================================================
+ConstTraversalsPtr Supergraph::traversals_into(
+  const std::size_t waypoint_index) const
+{
+  return _traversals_into->get().get(waypoint_index);
 }
 
 //==============================================================================
@@ -707,7 +851,7 @@ DifferentialDriveKeySet Supergraph::keys_for(
   using KeyHash = DifferentialDriveMapTypes::KeyHash;
   DifferentialDriveKeySet keys(31, KeyHash{_original.lanes.size()});
 
-  const auto relevant_entries = entries_into(goal_waypoint_index)
+  const auto relevant_goal_entries = entries_into(goal_waypoint_index)
     ->relevant_entries(goal_orientation);
 
   const auto relevant_traversals = traversals_from(start_waypoint_index);
@@ -722,7 +866,7 @@ DifferentialDriveKeySet Supergraph::keys_for(
       if (!alt.has_value())
         continue;
 
-      for (const auto& entry : relevant_entries)
+      for (const auto& entry : relevant_goal_entries)
       {
         keys.insert(
           {
@@ -912,15 +1056,16 @@ std::optional<double> Supergraph::LaneYawGenerator::generate(
 }
 
 //==============================================================================
-Supergraph::Supergraph(
-  Graph::Implementation original,
+Supergraph::Supergraph(Graph::Implementation original,
   VehicleTraits traits,
   LaneClosure lane_closures,
-  const Interpolate::Options::Implementation& interpolate)
+  const Interpolate::Options::Implementation& interpolate,
+  double traversal_cost_per_meter)
 : _original(std::move(original)),
   _traits(std::move(traits)),
   _lane_closures(std::move(lane_closures)),
   _interpolate(interpolate),
+  _traversal_cost_per_meter(traversal_cost_per_meter),
   _floor_changes(find_floor_changes(_original))
 {
   if (const auto* diff = _traits.get_differential())

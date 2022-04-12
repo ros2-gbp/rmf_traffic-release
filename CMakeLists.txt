@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.5.0)
 
-project(rmf_traffic VERSION 1.4.0)
+project(rmf_traffic VERSION 2.0.0)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 
-# Default to C++14
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
@@ -20,7 +20,10 @@ endif()
 
 include(GNUInstallDirs)
 
-find_package(fcl 0.6 QUIET)
+# We need to use the internal version of FCL because the upstream version has
+# bugs that are not yet fixed.
+#find_package(fcl 0.6 QUIET)
+
 if(fcl_FOUND)
   message(STATUS "Using installed FCL version: ${FCL_VERSION}")
 else()
@@ -33,9 +36,13 @@ set(using_new_fcl true)
 set(FCL_LIBRARIES fcl)
 
 find_package(rmf_utils REQUIRED)
-find_package(eigen3_cmake_module QUIET)
-find_package(Eigen3 REQUIRED)
 find_package(Threads)
+
+find_package(eigen3_cmake_module QUIET)
+if (eigen3_cmake_module_FOUND)
+  set(RMF_TRAFFIC_DEPENDS_EIGEN3_CMAKE_MODULE "find_dependency(eigen3_cmake_module)")
+endif()
+find_package(Eigen3 REQUIRED)
 
 # ===== Traffic control library
 file(GLOB_RECURSE core_lib_srcs "src/rmf_traffic/*.cpp")
@@ -44,8 +51,8 @@ add_library(rmf_traffic SHARED
 )
 
 find_package(ament_cmake_catch2 QUIET)
-find_package(rmf_cmake_uncrustify QUIET)
-if(BUILD_TESTING AND ament_cmake_catch2_FOUND AND rmf_cmake_uncrustify_FOUND)
+find_package(ament_cmake_uncrustify QUIET)
+if(BUILD_TESTING AND ament_cmake_catch2_FOUND AND ament_cmake_uncrustify_FOUND)
   file(GLOB_RECURSE unit_test_srcs "test/*.cpp")
 
   ament_add_catch2(
@@ -72,11 +79,15 @@ if(BUILD_TESTING AND ament_cmake_catch2_FOUND AND rmf_cmake_uncrustify_FOUND)
     NAMES "rmf_code_style.cfg"
     PATHS "${rmf_utils_DIR}/../../../share/rmf_utils/")
 
-  rmf_uncrustify(
-    ARGN include src test
-    CONFIG_FILE ${uncrustify_config_file}
-    MAX_LINE_LENGTH 80
-  )
+  # Uncrustify is bugging out, giving nonsense false positives for the file
+  # rmf_traffic/src/rmf_traffic/agv/Interpolate.cpp which have no apparent
+  # solution. We will disable uncrustify until this big is fixed or a workaround
+  # can be found.
+#  ament_uncrustify(
+#    ARGN include src test
+#    CONFIG_FILE ${uncrustify_config_file}
+#    MAX_LINE_LENGTH 80
+#  )
 endif()
 
 if(using_new_fcl)
@@ -112,7 +123,7 @@ configure_package_config_file(
 
 write_basic_package_version_file(
   ${PACKAGE_CONFIG_VERSION_FILE}
-  COMPATIBILITY ExactVersion
+  COMPATIBILITY SameMajorVersion
 )
 
 install(
@@ -148,4 +159,9 @@ export(
   NAMESPACE rmf_traffic::
 )
 
-export(PACKAGE rmf_traffic)
+# Export ament index path
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/share/ament_index/resource_index/packages/${PROJECT_NAME} "")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/share/ament_index/resource_index/packages/${PROJECT_NAME} DESTINATION share/ament_index/resource_index/packages)
+
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/share/${PROJECT_NAME}/hook/ament_prefix_path.dsv "prepend-non-duplicate;AMENT_PREFIX_PATH;")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/share/${PROJECT_NAME}/hook/ament_prefix_path.dsv DESTINATION share/${PROJECT_NAME}/hook)
