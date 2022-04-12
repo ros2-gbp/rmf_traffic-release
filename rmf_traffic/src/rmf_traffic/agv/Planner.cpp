@@ -38,6 +38,7 @@ public:
   VehicleTraits traits;
   Interpolate::Options interpolation;
   LaneClosure lane_closures;
+  double traversal_cost_per_meter = 5.0;
 
 };
 
@@ -137,17 +138,33 @@ const LaneClosure& Planner::Configuration::lane_closures() const
 }
 
 //==============================================================================
+auto Planner::Configuration::traversal_cost_per_meter(double per_meter) ->Configuration&
+{
+  _pimpl->traversal_cost_per_meter = per_meter;
+  return *this;
+}
+
+//==============================================================================
+double Planner::Configuration::traversal_cost_per_meter() const
+{
+  return _pimpl->traversal_cost_per_meter;
+}
+
+//==============================================================================
 class Planner::Options::Implementation
 {
 public:
 
   rmf_utils::clone_ptr<RouteValidator> validator;
   Duration min_hold_time;
-  rmf_utils::optional<double> maximum_cost_estimate;
-  rmf_utils::optional<std::size_t> saturation_limit;
+  std::optional<double> maximum_cost_estimate;
+  std::optional<std::size_t> saturation_limit;
 
   std::function<bool()> interrupter = nullptr;
-  std::shared_ptr<const bool> interrupt_flag = nullptr;
+  std::shared_ptr<const std::atomic_bool> interrupt_flag = nullptr;
+
+  std::optional<Duration> dependency_window = std::chrono::seconds(30);
+  Duration dependency_resolution = std::chrono::milliseconds(1000);
 
 };
 
@@ -155,9 +172,9 @@ public:
 Planner::Options::Options(
   rmf_utils::clone_ptr<RouteValidator> validator,
   const Duration min_hold_time,
-  std::shared_ptr<const bool> interrupt_flag,
-  rmf_utils::optional<double> maximum_cost_estimate,
-  rmf_utils::optional<std::size_t> saturation_limit)
+  std::shared_ptr<const std::atomic_bool> interrupt_flag,
+  std::optional<double> maximum_cost_estimate,
+  std::optional<std::size_t> saturation_limit)
 : _pimpl(rmf_utils::make_impl<Implementation>(
       Implementation{
         std::move(validator),
@@ -174,8 +191,8 @@ Planner::Options::Options(
   rmf_utils::clone_ptr<RouteValidator> validator,
   const Duration min_hold_time,
   std::function<bool()> interrupter,
-  rmf_utils::optional<double> maximum_cost_estimate,
-  rmf_utils::optional<std::size_t> saturation_limit)
+  std::optional<double> maximum_cost_estimate,
+  std::optional<std::size_t> saturation_limit)
 : _pimpl(rmf_utils::make_impl<Implementation>(
       Implementation{
         std::move(validator),
@@ -232,12 +249,13 @@ const std::function<bool()>& Planner::Options::interrupter() const
 
 //==============================================================================
 auto Planner::Options::interrupt_flag(
-  std::shared_ptr<const bool> flag) -> Options&
+  std::shared_ptr<const std::atomic_bool> flag) -> Options&
 {
   if (flag)
   {
     _pimpl->interrupt_flag = flag;
-    _pimpl->interrupter = [flag = std::move(flag)]() -> bool { return *flag; };
+    _pimpl->interrupter = [flag = std::move(flag)]() -> bool
+      { return flag->load(std::memory_order::memory_order_relaxed); };
   }
   else
   {
@@ -249,13 +267,14 @@ auto Planner::Options::interrupt_flag(
 }
 
 //==============================================================================
-const std::shared_ptr<const bool>& Planner::Options::interrupt_flag() const
+const std::shared_ptr<const std::atomic_bool>&
+Planner::Options::interrupt_flag() const
 {
   return _pimpl->interrupt_flag;
 }
 
 //==============================================================================
-auto Planner::Options::maximum_cost_estimate(rmf_utils::optional<double> value)
+auto Planner::Options::maximum_cost_estimate(std::optional<double> value)
 -> Options&
 {
   _pimpl->maximum_cost_estimate = value;
@@ -263,13 +282,13 @@ auto Planner::Options::maximum_cost_estimate(rmf_utils::optional<double> value)
 }
 
 //==============================================================================
-rmf_utils::optional<double> Planner::Options::maximum_cost_estimate() const
+std::optional<double> Planner::Options::maximum_cost_estimate() const
 {
   return _pimpl->maximum_cost_estimate;
 }
 
 //==============================================================================
-auto Planner::Options::saturation_limit(rmf_utils::optional<std::size_t> value)
+auto Planner::Options::saturation_limit(std::optional<std::size_t> value)
 -> Options&
 {
   _pimpl->saturation_limit = value;
@@ -277,9 +296,36 @@ auto Planner::Options::saturation_limit(rmf_utils::optional<std::size_t> value)
 }
 
 //==============================================================================
-rmf_utils::optional<std::size_t> Planner::Options::saturation_limit() const
+std::optional<std::size_t> Planner::Options::saturation_limit() const
 {
   return _pimpl->saturation_limit;
+}
+
+//==============================================================================
+auto Planner::Options::dependency_window(std::optional<Duration> value)
+-> Options&
+{
+  _pimpl->dependency_window = value;
+  return *this;
+}
+
+//==============================================================================
+std::optional<Duration> Planner::Options::dependency_window() const
+{
+  return _pimpl->dependency_window;
+}
+
+//==============================================================================
+auto Planner::Options::dependency_resoution(Duration value) -> Options&
+{
+  _pimpl->dependency_resolution = value;
+  return *this;
+}
+
+//==============================================================================
+Duration Planner::Options::dependency_resolution() const
+{
+  return _pimpl->dependency_resolution;
 }
 
 //==============================================================================
@@ -290,8 +336,8 @@ public:
   Time time;
   std::size_t waypoint;
   double orientation;
-  rmf_utils::optional<Eigen::Vector2d> location;
-  rmf_utils::optional<std::size_t> lane;
+  std::optional<Eigen::Vector2d> location;
+  std::optional<std::size_t> lane;
 
 };
 
@@ -300,8 +346,8 @@ Planner::Start::Start(
   const Time initial_time,
   const std::size_t initial_waypoint,
   const double initial_orientation,
-  rmf_utils::optional<Eigen::Vector2d> initial_location,
-  rmf_utils::optional<std::size_t> initial_lane)
+  std::optional<Eigen::Vector2d> initial_location,
+  std::optional<std::size_t> initial_lane)
 : _pimpl(rmf_utils::make_impl<Implementation>(
       Implementation{
         initial_time,
@@ -354,28 +400,28 @@ double Planner::Start::orientation() const
 }
 
 //==============================================================================
-const rmf_utils::optional<Eigen::Vector2d>& Planner::Start::location() const
+const std::optional<Eigen::Vector2d>& Planner::Start::location() const
 {
   return _pimpl->location;
 }
 
 //==============================================================================
 auto Planner::Start::location(
-  rmf_utils::optional<Eigen::Vector2d> initial_location) -> Start&
+  std::optional<Eigen::Vector2d> initial_location) -> Start&
 {
   _pimpl->location = std::move(initial_location);
   return *this;
 }
 
 //==============================================================================
-const rmf_utils::optional<std::size_t>& Planner::Start::lane() const
+const std::optional<std::size_t>& Planner::Start::lane() const
 {
   return _pimpl->lane;
 }
 
 //==============================================================================
 auto Planner::Start::lane(
-  rmf_utils::optional<std::size_t> initial_lane) -> Start&
+  std::optional<std::size_t> initial_lane) -> Start&
 {
   _pimpl->lane = initial_lane;
   return *this;
@@ -844,7 +890,8 @@ bool Planner::Result::resume()
 }
 
 //==============================================================================
-bool Planner::Result::resume(std::shared_ptr<const bool> interrupt_flag)
+bool Planner::Result::resume(
+  std::shared_ptr<const std::atomic_bool> interrupt_flag)
 {
   _pimpl->state.conditions.options.interrupt_flag(std::move(interrupt_flag));
   return resume();
@@ -870,7 +917,7 @@ Planner::Result& Planner::Result::options(Options new_options)
 }
 
 //==============================================================================
-rmf_utils::optional<double> Planner::Result::cost_estimate() const
+std::optional<double> Planner::Result::cost_estimate() const
 {
   return _pimpl->state.internal->cost_estimate();
 }
@@ -969,21 +1016,40 @@ const std::vector<std::size_t>& Plan::Waypoint::approach_lanes() const
 }
 
 //==============================================================================
+auto Plan::Waypoint::progress_checkpoints() const
+-> const std::vector<Progress>&
+{
+  return _pimpl->progress;
+}
+
+//==============================================================================
+auto Plan::Waypoint::arrival_checkpoints() const -> const Checkpoints&
+{
+  return _pimpl->arrival;
+}
+
+//==============================================================================
 std::size_t Plan::Waypoint::itinerary_index() const
 {
-  return _pimpl->itinerary_index;
+  return _pimpl->arrival.back().route_id;
 }
 
 //==============================================================================
 std::size_t Plan::Waypoint::trajectory_index() const
 {
-  return _pimpl->trajectory_index;
+  return _pimpl->arrival.back().checkpoint_id;
 }
 
 //==============================================================================
 const Graph::Lane::Event* Plan::Waypoint::event() const
 {
   return _pimpl->event.get();
+}
+
+//==============================================================================
+const Dependencies& Plan::Waypoint::dependencies() const
+{
+  return _pimpl->dependencies;
 }
 
 //==============================================================================
@@ -1174,7 +1240,7 @@ public:
 };
 
 //==============================================================================
-rmf_utils::optional<Plan> Planner::Debug::Progress::step()
+std::optional<Plan> Planner::Debug::Progress::step()
 {
   auto result = _pimpl->interface->debug_step(*_pimpl->debugger);
 
