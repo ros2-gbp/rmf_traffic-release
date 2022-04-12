@@ -1,3 +1,28 @@
+## rmf_traffic (rolling) - 2.0.0-1
+
+The packages in the `rmf_traffic` repository were released into the `rolling` distro by running `/usr/bin/bloom-release --ros-distro rolling --track rolling rmf_traffic` on `Tue, 12 Apr 2022 06:47:23 -0000`
+
+These packages were released:
+- `rmf_traffic`
+- `rmf_traffic_examples`
+
+Version of package(s) in repository `rmf_traffic`:
+
+- upstream repository: https://github.com/open-rmf/rmf_traffic.git
+- release repository: https://github.com/ros2-gbp/rmf_traffic-release.git
+- rosdistro version: `1.4.1-2`
+- old version: `1.4.1-2`
+- new version: `2.0.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.10.7`
+- catkin_pkg version: `0.4.24`
+- rosdep version: `0.21.0`
+- rosdistro version: `0.8.3`
+- vcstools version: `0.1.42`
+
+
 ## rmf_traffic (rolling) - 1.4.1-1
 
 The packages in the `rmf_traffic` repository were released into the `rolling` distro by running `/usr/bin/bloom-release --ros-distro rolling --track rolling rmf_traffic` on `Wed, 27 Oct 2021 10:21:13 -0000`
