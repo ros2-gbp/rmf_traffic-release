@@ -1,5 +1,11 @@
 ## Changelog for package rmf_traffic
 
+2.1.0 (2022-09-28)
+------------------
+* Robust schedule failover [#88](https://github.com/open-rmf/rmf_traffic/issues/88)
+* Provide an API for changing participant profile [#87](https://github.com/open-rmf/rmf_traffic/issues/87)
+* Quickest path feature: [#84](https://github.com/open-rmf/rmf_traffic/pull/84)
+
 2.0.0 (2022-03-18)
 ------------------
 * Introduce traffic dependency system: [#70](https://github.com/open-rmf/rmf_traffic/pull/70)
