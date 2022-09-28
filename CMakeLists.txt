@@ -36,7 +36,7 @@ set(using_new_fcl true)
 set(FCL_LIBRARIES fcl)
 
 find_package(rmf_utils REQUIRED)
-find_package(Threads)
+find_package(Threads REQUIRED)
 
 find_package(eigen3_cmake_module QUIET)
 if (eigen3_cmake_module_FOUND)
@@ -97,6 +97,7 @@ endif()
 target_link_libraries(rmf_traffic
   PUBLIC
     rmf_utils::rmf_utils
+    Threads::Threads
   PRIVATE
     ${FCL_LIBRARIES}
 )
