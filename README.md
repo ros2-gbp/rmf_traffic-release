@@ -1,3 +1,28 @@
+## rmf_traffic (humble) - 3.0.2-1
+
+The packages in the `rmf_traffic` repository were released into the `humble` distro by running `/usr/bin/bloom-release --rosdistro humble rmf_traffic` on `Wed, 20 Dec 2023 04:40:57 -0000`
+
+These packages were released:
+- `rmf_traffic`
+- `rmf_traffic_examples`
+
+Version of package(s) in repository `rmf_traffic`:
+
+- upstream repository: https://github.com/open-rmf/rmf_traffic.git
+- release repository: https://github.com/ros2-gbp/rmf_traffic-release.git
+- rosdistro version: `3.0.1-1`
+- old version: `3.0.1-1`
+- new version: `3.0.2-1`
+
+Versions of tools used:
+
+- bloom version: `0.11.2`
+- catkin_pkg version: `0.5.2`
+- rosdep version: `0.22.2`
+- rosdistro version: `0.9.0`
+- vcstools version: `0.1.42`
+
+
 ## rmf_traffic (iron) - 3.1.1-1
 
 The packages in the `rmf_traffic` repository were released into the `iron` distro by running `/usr/bin/bloom-release --rosdistro iron rmf_traffic` on `Wed, 20 Dec 2023 04:33:02 -0000`
