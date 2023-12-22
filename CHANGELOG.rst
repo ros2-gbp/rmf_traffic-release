@@ -2,6 +2,9 @@
 Changelog for package rmf_traffic_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.0.3 (2023-12-22)
+------------------
+
 3.0.1 (2023-06-05)
 ------------------
 * Switch to rst changelogs
