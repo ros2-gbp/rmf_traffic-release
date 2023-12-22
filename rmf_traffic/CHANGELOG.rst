@@ -2,15 +2,20 @@
 Changelog for package rmf_traffic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.0.2 (2023-12-15)
+3.1.2 (2023-12-22)
+------------------
+* Fix UB in plan squashing (`#106 <https://github.com/open-rmf/rmf_traffic/issues/106>`_)
+* Contributors: Grey
+
+3.1.1 (2023-12-15)
 ------------------
 * New graph elements and various fixes (`#103 <https://github.com/open-rmf/rmf_traffic/pull/103>`_)
 
-3.0.1 (2023-06-05)
+3.1.0 (2023-06-06)
 ------------------
-* Switch to rst changelogs
-* Fix multi floor anomaly (`#97 <https://github.com/open-rmf/rmf_traffic/issues/97>`_)
-* Fix end_versions initialization capacity error in ``NegotiatingRouteValidator::Generator::all()`` function (`#58 <https://github.com/open-rmf/rmf_traffic/issues/58>`_)
+* Switch to rst changelogs (`#100 <https://github.com/open-rmf/rmf_traffic/pull/100>`_)
+* Fix multi floor anomaly (`#97 <https://github.com/open-rmf/rmf_traffic/pull/97>`_)
+* Fix end_versions initialization capacity error in ``NegotiatingRouteValidator::Generator::all()`` function (`#58 <https://github.com/open-rmf/rmf_traffic/pull/58>`_)
 * Contributors: 0to1, Grey, Yadunund
 
 3.0.0 (2022-10-03)
