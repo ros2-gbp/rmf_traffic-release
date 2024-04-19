@@ -1,0 +1,32 @@
+ros-jazzy-rmf-traffic-examples (3.3.1-3bookworm) bookworm; urgency=high
+
+
+
+ -- Grey <grey@openrobotics.org>  Fri, 22 Dec 2023 00:00:00 -0000
+
+ros-jazzy-rmf-traffic-examples (3.2.0-3bookworm) bookworm; urgency=high
+
+
+
+ -- Grey <grey@openrobotics.org>  Thu, 08 Jun 2023 00:00:00 -0000
+
+ros-jazzy-rmf-traffic-examples (3.1.0-3bookworm) bookworm; urgency=high
+
+  * Switch to rst changelogs (#100 <https://github.com/open-rmf/rmf_traffic/pull/100>)
+  * Contributors: Yadunund
+
+ -- Grey <grey@openrobotics.org>  Tue, 06 Jun 2023 00:00:00 -0000
+
+ros-jazzy-rmf-traffic-examples (3.0.0-3bookworm) bookworm; urgency=high
+
+
+
+ -- Grey <grey@openrobotics.org>  Mon, 03 Oct 2022 00:00:00 -0000
+
+ros-jazzy-rmf-traffic-examples (2.0.0-3bookworm) bookworm; urgency=high
+
+  * Added examples for rmf_traffic
+
+ -- Grey <grey@openrobotics.org>  Fri, 18 Mar 2022 00:00:00 -0000
+
+
