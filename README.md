@@ -1,3 +1,28 @@
+## rmf_traffic (jazzy) - 3.3.2-1
+
+The packages in the `rmf_traffic` repository were released into the `jazzy` distro by running `/usr/bin/bloom-release --rosdistro jazzy rmf_traffic` on `Fri, 14 Jun 2024 20:08:26 -0000`
+
+These packages were released:
+- `rmf_traffic`
+- `rmf_traffic_examples`
+
+Version of package(s) in repository `rmf_traffic`:
+
+- upstream repository: https://github.com/open-rmf/rmf_traffic.git
+- release repository: https://github.com/ros2-gbp/rmf_traffic-release.git
+- rosdistro version: `3.3.1-3`
+- old version: `3.3.1-3`
+- new version: `3.3.2-1`
+
+Versions of tools used:
+
+- bloom version: `0.12.0`
+- catkin_pkg version: `0.5.2`
+- rosdep version: `0.24.0`
+- rosdistro version: `0.9.1`
+- vcstools version: `0.1.42`
+
+
 ## rmf_traffic (rolling) - 3.4.0-1
 
 The packages in the `rmf_traffic` repository were released into the `rolling` distro by running `/usr/bin/bloom-release --rosdistro rolling rmf_traffic` on `Fri, 14 Jun 2024 20:03:16 -0000`
