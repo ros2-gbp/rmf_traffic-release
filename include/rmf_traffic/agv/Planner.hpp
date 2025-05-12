@@ -601,6 +601,23 @@ public:
       const StartSet& start,
       std::size_t goal_vertex) const;
 
+
+  class CacheAudit;
+  /// Get an audit of how much memory the planner's cache is using.
+  CacheAudit cache_audit() const;
+
+  /// Clear the cache for the differential drive heuristic. This will clear
+  /// memory that the cache is occupying, but it will force the planner to
+  /// rebuild the cache the next time it needs to generate a plan.
+  ///
+  /// This function can be used to bring down memory utilization in cases where
+  /// the planner cache is ballooning. You can use the cache_audit function to
+  /// identify when the cache is getting excessively large.
+  ///
+  /// Clearing the cache too frequently could harm the planner's performance.
+  /// It is advisable to not clear the cache more than once per minute.
+  void clear_differential_drive_cache() const;
+
   class Implementation;
   class Debug;
 private:
@@ -762,6 +779,8 @@ public:
   /// do prevent the optimal solution from being available.
   std::vector<schedule::ParticipantId> blockers() const;
 
+
+
   class Implementation;
 private:
   Result();
@@ -880,6 +899,23 @@ private:
   rmf_utils::impl_ptr<Implementation> _pimpl;
 };
 
+//==============================================================================
+/// Number of elements in various caches within the planner.
+class Planner::CacheAudit
+{
+public:
+
+  std::size_t differential_drive_planner_cache_size() const;
+
+  std::size_t shortest_path_cache_size() const;
+
+  std::size_t euclidean_heuristic_cache_size() const;
+
+  class Implementation;
+private:
+  CacheAudit();
+  rmf_utils::impl_ptr<Implementation> _pimpl;
+};
 
 /// Produces a set of possible starting waypoints and lanes in order to start
 /// planning. This method attempts to find the most suitable starting nodes
@@ -924,5 +960,14 @@ std::vector<Plan::Start> compute_plan_starts(
 
 } // namespace agv
 } // namespace rmf_traffic
+
+namespace std {
+
+//==============================================================================
+ostream& operator<<(
+  ostream& os,
+  const rmf_traffic::agv::Planner::CacheAudit& audit);
+
+} // namespace std
 
 #endif // RMF_TRAFFIC__AGV__PLANNER_HPP

@@ -113,7 +113,7 @@ public:
 
   // Documentation inherited from Viewer
   std::shared_ptr<const ParticipantDescription> get_participant(
-    std::size_t participant_id) const final;
+    ParticipantId participant_id) const final;
 
   // Documentation inherited from Viewer
   Version latest_version() const;
@@ -125,11 +125,11 @@ public:
 
   // Documentation inherited from ItineraryViewer
   std::optional<ItineraryView> get_itinerary(
-    std::size_t participant_id) const final;
+    ParticipantId participant_id) const final;
 
   // Documentation inherited from ItineraryViewer
   std::optional<PlanId> get_current_plan_id(
-    std::size_t participant_id) const final;
+    ParticipantId participant_id) const final;
 
   // Documentation inherited from ItineraryViewer
   const std::vector<CheckpointId>* get_current_progress(
@@ -257,6 +257,14 @@ public:
 
   /// Get the last Storage ID used by this participant.
   StorageId next_storage_base(ParticipantId participant) const;
+
+  /// Get a count of how many waypoints are currently being stored as active in
+  /// the database. This gives some sense of the memory utilizaztion of the database.
+  std::size_t waypoints_in_storage() const;
+
+  /// Get a count of how many entries are being stored in the timeline of the
+  /// database. This gives some sense of the memory utilizaztion of the database.
+  std::size_t entries_in_timeline() const;
 
   class Implementation;
   class Debug;
