@@ -1052,6 +1052,18 @@ auto Planner::quickest_path(
 }
 
 //==============================================================================
+auto Planner::cache_audit() const -> CacheAudit
+{
+  return _pimpl->interface->cache_audit();
+}
+
+//==============================================================================
+void Planner::clear_differential_drive_cache() const
+{
+  _pimpl->interface->clear_cache();
+}
+
+//==============================================================================
 const Eigen::Vector3d& Plan::Waypoint::position() const
 {
   return _pimpl->position;
@@ -1149,6 +1161,31 @@ Plan::Plan()
 }
 
 //==============================================================================
+Planner::CacheAudit::CacheAudit()
+  : _pimpl(rmf_utils::make_impl<Implementation>())
+{
+  // Do nothing
+}
+
+//==============================================================================
+std::size_t Planner::CacheAudit::differential_drive_planner_cache_size() const
+{
+  return _pimpl->differential_drive_planner_cache_size;
+}
+
+//==============================================================================
+std::size_t Planner::CacheAudit::shortest_path_cache_size() const
+{
+  return _pimpl->shortest_path_cache_size;
+}
+
+//==============================================================================
+std::size_t Planner::CacheAudit::euclidean_heuristic_cache_size() const
+{
+  return _pimpl->euclidean_heuristic_cache_size;
+}
+
+//==============================================================================
 std::vector<Plan::Start> compute_plan_starts(
   const rmf_traffic::agv::Graph& graph,
   const std::string& map_name,
@@ -1169,8 +1206,10 @@ std::vector<Plan::Start> compute_plan_starts(
       continue;
 
     const Eigen::Vector2d wp_location = wp.get_location();
+    const auto merge_radius =
+      wp.merge_radius().value_or(max_merge_waypoint_distance);
 
-    if ( (p_location - wp_location).norm() < max_merge_waypoint_distance)
+    if ( (p_location - wp_location).norm() < merge_radius)
     {
       return {Plan::Start(start_time, wp.index(), start_yaw)};
     }
@@ -1401,3 +1440,20 @@ std::size_t Planner::Debug::node_count(const Planner::Result& result)
 
 } // namespace agv
 } // namespace rmf_traffic
+
+namespace std {
+
+//==============================================================================
+ostream& operator<<(
+  ostream& os,
+  const rmf_traffic::agv::Planner::CacheAudit& audit)
+{
+  os << "Cache sizes:"
+     << "\n - DifferentialDrive: " << audit.differential_drive_planner_cache_size()
+     << "\n - ShortestPath: " << audit.shortest_path_cache_size()
+     << "\n - Euclidean: " << audit.euclidean_heuristic_cache_size();
+
+  return os;
+}
+
+} // namespace std
