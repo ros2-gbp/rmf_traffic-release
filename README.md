@@ -1,3 +1,28 @@
+## rmf_traffic (kilted) - 3.5.0-1
+
+The packages in the `rmf_traffic` repository were released into the `kilted` distro by running `/usr/bin/bloom-release -r kilted rmf_traffic` on `Tue, 20 May 2025 18:25:38 -0000`
+
+These packages were released:
+- `rmf_traffic`
+- `rmf_traffic_examples`
+
+Version of package(s) in repository `rmf_traffic`:
+
+- upstream repository: https://github.com/open-rmf/rmf_traffic.git
+- release repository: https://github.com/ros2-gbp/rmf_traffic-release.git
+- rosdistro version: `3.4.0-2`
+- old version: `3.4.0-2`
+- new version: `3.5.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.12.0`
+- catkin_pkg version: `1.0.0`
+- rosdep version: `0.25.1`
+- rosdistro version: `1.0.1`
+- vcstools version: `0.1.42`
+
+
 ## rmf_traffic (rolling) - 3.5.0-1
 
 The packages in the `rmf_traffic` repository were released into the `rolling` distro by running `/usr/bin/bloom-release -r rolling rmf_traffic` on `Mon, 12 May 2025 04:26:32 -0000`
