@@ -127,6 +127,10 @@ public:
 
   virtual std::optional<PlanData> debug_step(Debugger& debugger) const = 0;
 
+  virtual Planner::CacheAudit cache_audit() const = 0;
+
+  virtual void clear_cache() const = 0;
+
   virtual ~Interface() = default;
 };
 
