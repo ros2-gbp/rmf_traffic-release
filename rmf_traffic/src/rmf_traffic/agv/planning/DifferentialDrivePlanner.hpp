@@ -60,11 +60,16 @@ public:
 
   std::optional<PlanData> debug_step(Debugger& debugger) const final;
 
+  Planner::CacheAudit cache_audit() const final;
+
+  void clear_cache() const final;
+
   std::optional<double> compute_heuristic(const Planner::Start& start) const;
 
 private:
   Planner::Configuration _config;
   std::shared_ptr<const Supergraph> _supergraph;
+  std::shared_ptr<const ShortestPathHeuristic> _shortest_path;
   CacheManagerPtr<DifferentialDriveHeuristic> _cache;
 };
 
