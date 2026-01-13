@@ -555,6 +555,32 @@ std::vector<Plan::Waypoint> find_dependencies(
 }
 
 //==============================================================================
+namespace {
+class DockFinder : public Graph::Lane::Executor
+{
+public:
+  DockFinder()
+  {
+    // Do nothing
+  }
+
+  void execute(const DoorOpen&) override {}
+  void execute(const DoorClose&) override {}
+  void execute(const LiftSessionBegin&) override {}
+  void execute(const LiftDoorOpen&) override {}
+  void execute(const LiftSessionEnd&) override {}
+  void execute(const LiftMove&) override {}
+  void execute(const Wait&) override {}
+  void execute(const Dock& dock) override
+  {
+    found = true;
+  }
+
+  bool found = false;
+};
+} // anonymous namespace
+
+//==============================================================================
 template<typename NodePtr>
 std::pair<std::vector<Route>, std::vector<Plan::Waypoint>>
 reconstruct_waypoints(
@@ -635,15 +661,29 @@ reconstruct_waypoints(
     const bool same_ori = same_orientation(prev_wp.position[2], node->yaw);
     if (!same_pos && !same_ori)
     {
-      candidates.push_back(WaypointCandidate{
-        true,
-        Plan::Waypoint::Implementation{
-          Eigen::Vector3d{prev_pos[0],  prev_pos[1], node->yaw},
-          prev_wp.time, prev_wp.graph_index,
-          {}, {}, {}, prev_wp.event, {}
-        },
-        prev_candidate.velocity
-      });
+      // Check if the previous waypoint has a Dock event.
+      // If it does, skip adding an in-place rotation to avoid duplicate
+      // dock event.
+      bool found_dock_event = false;
+      if (prev_wp.event != nullptr)
+      {
+        DockFinder dock_finder;
+        prev_wp.event->execute(dock_finder);
+        found_dock_event = dock_finder.found;
+      }
+
+      if (!found_dock_event)
+      {
+        candidates.push_back(WaypointCandidate{
+          true,
+          Plan::Waypoint::Implementation{
+            Eigen::Vector3d{prev_pos[0],  prev_pos[1], node->yaw},
+            prev_wp.time, prev_wp.graph_index,
+            {}, {}, {}, prev_wp.event, {}
+          },
+          prev_candidate.velocity
+        });
+      }
     }
 
     if (node->approach_lanes.empty())
@@ -2062,8 +2102,23 @@ public:
     return {true, std::move(trajectories)};
   }
 
-  SearchNodePtr make_start_node(const Planner::Start& start) const
+  SearchNodePtr make_start_node(const Planner::Start& input_start) const
   {
+    Planner::Start start = input_start;
+
+    // Ensure start's waypoint is consistent with the exit waypoint
+    // of the specified lane, correcting it if necessary.
+    if (input_start.lane().has_value())
+    {
+      const std::size_t lane_index = *input_start.lane();
+      const auto& lane = _supergraph->original().lanes.at(lane_index);  
+      const auto exit_wp = lane.exit().waypoint_index();
+      if (start.waypoint() != exit_wp)
+      {
+        start.waypoint(exit_wp);
+      }
+    }
+
     const std::size_t initial_waypoint_index = start.waypoint();
     const auto& initial_waypoint =
       _supergraph->original().waypoints.at(initial_waypoint_index);
@@ -2928,6 +2983,12 @@ Planner::CacheAudit DifferentialDrivePlanner::cache_audit() const
 void DifferentialDrivePlanner::clear_cache() const
 {
   _cache->get().clear();
+}
+
+//==============================================================================
+void DifferentialDrivePlanner::clear_inner_cache() const
+{
+  _cache->inner()->clear_inner_heuristic();
 }
 
 } // namespace planning
