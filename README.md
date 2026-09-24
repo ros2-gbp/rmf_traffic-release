@@ -1,3 +1,28 @@
+## rmf_traffic (lyrical) - 3.8.1-1
+
+The packages in the `rmf_traffic` repository were released into the `lyrical` distro by running `/usr/bin/bloom-release --rosdistro lyrical --track lyrical --edit-track rmf_traffic` on `Thu, 24 Sep 2026 17:49:02 -0000`
+
+These packages were released:
+- `rmf_traffic`
+- `rmf_traffic_examples`
+
+Version of package(s) in repository `rmf_traffic`:
+
+- upstream repository: https://github.com/open-rmf/rmf_traffic.git
+- release repository: https://github.com/ros2-gbp/rmf_traffic-release.git
+- rosdistro version: `3.8.0-1`
+- old version: `3.8.0-1`
+- new version: `3.8.1-1`
+
+Versions of tools used:
+
+- bloom version: `0.14.4`
+- catkin_pkg version: `1.1.1`
+- rosdep version: `0.27.0`
+- rosdistro version: `1.1.0`
+- vcstools version: `0.1.42`
+
+
 ## rmf_traffic (lyrical) - 3.8.0-1
 
 The packages in the `rmf_traffic` repository were released into the `lyrical` distro by running `/usr/bin/bloom-release --rosdistro lyrical rmf_traffic` on `Mon, 15 Jun 2026 11:03:39 -0000`
