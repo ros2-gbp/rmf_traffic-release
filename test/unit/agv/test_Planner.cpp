@@ -1057,8 +1057,10 @@ SCENARIO("Test planning")
     CHECK(plan->get_itinerary().size() == 1);
     REQUIRE(plan->get_itinerary().front().trajectory().size() > 0);
     const auto t = plan->get_itinerary().front().trajectory();
-    const auto final_p = t.front().position().block<2, 1>(0, 0);
-    const auto err = (final_p - Eigen::Vector2d(10, -5)).norm();
+    const Eigen::Vector2d final_p = t.front().position().block<2, 1>(0, 0);
+    const Eigen::Vector2d expected_p = Eigen::Vector2d(10, -5);
+    const double err = (final_p - expected_p).norm();
+    CAPTURE(final_p, expected_p, err);
     CHECK(err == Approx(0.0) );
     CHECK(t.back().position()[2] - goal_orientation == Approx(0));
     CHECK(t.back().time() > start_time);
@@ -2273,7 +2275,11 @@ public:
     LiftMove,
     LiftDoorOpen,
     Dock,
-    Wait
+    Wait,
+    ZonePreEntry,
+    ZonePostEntry,
+    ZonePreExit,
+    ZonePostExit
   };
 
   using Lane = rmf_traffic::agv::Graph::Lane;
@@ -2323,6 +2329,26 @@ public:
   void execute(const Lane::Wait&) final
   {
     _result = _expectation == Wait;
+  }
+
+  void execute(const Lane::ZonePreEntry&) final
+  {
+    _result = _expectation == ZonePreEntry;
+  }
+
+  void execute(const Lane::ZonePostEntry&) final
+  {
+    _result = _expectation == ZonePostEntry;
+  }
+
+  void execute(const Lane::ZonePreExit&) final
+  {
+    _result = _expectation == ZonePreExit;
+  }
+
+  void execute(const Lane::ZonePostExit&) final
+  {
+    _result = _expectation == ZonePostExit;
   }
 
   bool result() const
