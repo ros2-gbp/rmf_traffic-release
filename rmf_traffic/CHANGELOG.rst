@@ -2,10 +2,18 @@
 Changelog for package rmf_traffic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.8.1 (2026-09-22)
+3.10.0 (2026-11-13)
+-------------------
+* Fix missing <cassert> includes in geometry and vendored FCL (`#140 <https://github.com/open-rmf/rmf_traffic/issues/140>`_)
+* Add zone properties and zone lane events for GoToZone feature (`#133 <https://github.com/open-rmf/rmf_traffic/issues/133>`_)
+  Co-authored-by: Loke Ji Xian <loke_ji_xian@cgh.com.sg>
+  Co-authored-by: Tey Leong Teck <leong_teck_tey@cgh.com.sg>
+  Co-authored-by: kjchee <keai_jiang_chee@cgh.com.sg>
+* bump cmake versions (`#139 <https://github.com/open-rmf/rmf_traffic/issues/139>`_)
+* Contributors: Aaron Chong, Sayan Paul, chart
+
+3.9.0 (2026-09-24)
 ------------------
-* Update version in CMakeLists.txt
-* Contributors: Michael X. Grey
 
 3.8.0 (2026-06-15)
 ------------------
